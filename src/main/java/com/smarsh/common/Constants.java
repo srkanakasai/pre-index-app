@@ -34,4 +34,9 @@ public class Constants {
 	public static final Supplier<BigDecimal> IndexToDataRatio(Integer percent){
 		return ()->BigDecimal.valueOf((double)percent/100);
 	}
+	
+	public static final long kilo = 1024;
+	public static final long mega = kilo * kilo;
+	public static final long giga = mega * kilo;
+	public static final long tera = giga * kilo;
 }

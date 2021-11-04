@@ -1,6 +1,7 @@
 package com.smarsh.ingestion;
 
 import static com.smarsh.common.Constants.dateFormat;
+import static com.smarsh.common.Constants.mega;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -32,10 +33,10 @@ public class IndexMetaGeneratorService {
 		logger.info("***generatePreIndexes STARTS****");
 		try {
 			
-			MAX_SIZE_PER_INDEX = UTIL.getMaxSizePerIndex(
-					metaData.getMaxNumOfShardsPerIndex(),
-					metaData.getShardSizeInGB(),
-					metaData.getFillPercentage());
+			MAX_SIZE_PER_INDEX = UTIL.getMaxSizePerIndexInGB(
+										metaData.getMaxNumOfShardsPerIndex(),
+										metaData.getShardSizeInGB(),
+										metaData.getFillPercentage())*mega;
 			
 			for(Region region : regions) {
 				Stream<String> lines = UTIL.readFile(region.getFileName(),this);
