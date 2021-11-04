@@ -1,8 +1,14 @@
 package com.smarsh.common;
 
-import java.text.ParseException;
+import static com.smarsh.common.Constants.ROUND_OFF_FACTOR;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.stream.Stream;
 
 public class UTIL {
 	
@@ -19,9 +25,18 @@ public class UTIL {
 		return String.format("%d%s%s", year,monthStr,dateStr);
 	}
 	
-	public static void main(String[] args) throws ParseException {
-		System.out.println(Constants.dateFormat.get().parse("2021-08-20"));
-		System.out.println(getDateForIndex(Constants.dateFormat.get().parse("2021-08-20")));
+	public static long getMaxSizePerIndex(int maxNumOfShardsPerIndex, int shardSizeInGB, int fillPercentage) {
+		int maxIndexMemoryAvailable = maxNumOfShardsPerIndex*shardSizeInGB;
+		int maxAllowedSizePerIndex = ((maxIndexMemoryAvailable*fillPercentage)/100);
+		return (ROUND_OFF_FACTOR*(Math.round((double)maxAllowedSizePerIndex/ROUND_OFF_FACTOR)));
+	}
+	
+	public static Stream<String> readFile(String fileName, Object o) throws IOException {
+		InputStream inputStream = o.getClass().getResourceAsStream("/"+fileName);
+		InputStreamReader inputStreamReader = new InputStreamReader(inputStream);
+		BufferedReader bufferedReader = new BufferedReader(inputStreamReader);
+		Stream<String> lines = bufferedReader.lines();
+		return lines;
 	}
 
 }

@@ -1,14 +1,10 @@
 package com.smarsh.ingestion;
 
-import static com.smarsh.common.Constants.IndexToDataRatio;
-import static com.smarsh.common.Constants.MAX_SIZE_PER_INDEX;
+import static com.smarsh.common.Constants.dateFormat;
 
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.math.BigDecimal;
 import java.text.ParseException;
 import java.util.ArrayList;
@@ -18,23 +14,47 @@ import java.util.List;
 import java.util.Objects;
 import java.util.stream.Stream;
 
-import com.smarsh.common.Constants;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import com.smarsh.common.Region;
 import com.smarsh.common.UTIL;
 import com.smarsh.pojo.HistogramData;
 import com.smarsh.pojo.Pair;
+import com.smarsh.pojo.PreIndexMetaData;
 
-public class IndexMetaGeneratorApp {
+public class IndexMetaGeneratorService {
 
-	private Stream<String> readFile(String fileName) throws IOException{
-		InputStream inputStream = this.getClass().getResourceAsStream("/"+fileName);
-		InputStreamReader inputStreamReader = new InputStreamReader(inputStream);
-		BufferedReader bufferedReader = new BufferedReader(inputStreamReader);
-		Stream<String> lines = bufferedReader.lines();
-		return lines;
+	private static Logger logger = LogManager.getLogger(IndexMetaGeneratorService.class);
+	private static Long MAX_SIZE_PER_INDEX = 200000000l;
+
+	public void generatePreIndexes(PreIndexMetaData metaData, List<Region> regions) {
+		logger.info("***generatePreIndexes STARTS****");
+		try {
+			
+			MAX_SIZE_PER_INDEX = UTIL.getMaxSizePerIndex(
+					metaData.getMaxNumOfShardsPerIndex(),
+					metaData.getShardSizeInGB(),
+					metaData.getFillPercentage());
+			
+			for(Region region : regions) {
+				Stream<String> lines = UTIL.readFile(region.getFileName(),this);
+
+				ArrayList<Pair<Double, List<HistogramData>>> groupByIndexSumMax = this.groupByOutliersAndSize(
+						lines, 
+						metaData,
+						region);
+
+				generateIndexSnapshot(groupByIndexSumMax, metaData, region);
+			}
+		} catch(IOException e) {
+			logger.error("Exception in reading the histogram files", e);
+		} finally {
+			logger.info("***generatePreIndexes END****");
+		}
 	}
 
-	private static void generateIndexeSnapshot(ArrayList<Pair<Double, List<HistogramData>>> groupByIndexSumMax, Region region) {
+	private void generateIndexSnapshot(ArrayList<Pair<Double, List<HistogramData>>> groupByIndexSumMax, PreIndexMetaData preIndexMetaData, Region region) {
 
 		String outputFileName = region+"_indexes.txt";
 		File newFile = new File(outputFileName);
@@ -44,7 +64,7 @@ public class IndexMetaGeneratorApp {
 			if(newFile.createNewFile()) {
 				FileWriter fw = new FileWriter(outputFileName);
 
-				System.out.println("Total No. of Indexs for: ******* "+region+" : "+groupByIndexSumMax.size()+" *******");
+				logger.debug("Total No. of Indexs for: ******* "+region+" : "+groupByIndexSumMax.size()+" *******");
 				fw.write("Total No. of Indexes for: ******* "+region+" : "+groupByIndexSumMax.size()+" *******\n");
 
 				for(int i = 0; i<groupByIndexSumMax.size(); i++) {
@@ -56,46 +76,45 @@ public class IndexMetaGeneratorApp {
 					String indexID = String.format("BNY_%s_data_%s_1000_archive.av5", 
 							region.name(), UTIL.getDateForIndex(startDate));
 
-					System.out.println(String.format("IndexID:%s, StartDate:%s, EndDate:%s, MemoryConsumption:%d",
+					logger.debug(String.format("IndexID:%s, StartDate:%s, EndDate:%s, MemoryConsumption:%d",
 							indexID, startRange.getDateInString(), endRange.getDateInString(), indexMemSize.intValue()));
 					fw.write(String.format("IndexID:%s, StartDate:%s, EndDate:%s, MemoryConsumption:%d\n",
 							indexID, startRange.getDateInString(), endRange.getDateInString(), indexMemSize.intValue()));
 				}
 
 				fw.write("************** END ***********************\n");
-				System.out.println("************** END ***********************");
+				logger.debug("************** END ***********************");
 
 				fw.close();
 			}
 		} catch (IOException e) {
-			System.out.println("Exception in writing the details to output file");
-			e.printStackTrace();
+			logger.error("Exception in writing the details to output file", e);
 		}
 	}
 
-	private ArrayList<Pair<Double, List<HistogramData>>> groupByOutliersAndSize(Stream<String> lines, Region region) {
+	private ArrayList<Pair<Double, List<HistogramData>>> groupByOutliersAndSize(Stream<String> lines, PreIndexMetaData preIndexMetaData, Region region) {
 		ArrayList<Pair<Double, List<HistogramData>>> groupByIndexSumMax = lines
 				.skip(1)
 				.map(line -> {
 					String[] data = line.split(",");
 					Date date = null;
 					try {
-						date = Constants.dateFormat.get().parse(data[0]);
+						date = dateFormat.get().parse(data[0]);
 					} catch (ParseException e) {
 						e.printStackTrace();
 					}
 					BigDecimal sizeInKB = new BigDecimal(data[2]);
 					Integer hour = Integer.parseInt(data[1]);
-					BigDecimal indexSizeV2 = sizeInKB.multiply(IndexToDataRatio);
+					BigDecimal indexSizeV2 = sizeInKB.multiply(preIndexMetaData.getIndexToDocMemRatio());
 					HistogramData histogramData = new HistogramData(region, date, sizeInKB, hour, indexSizeV2.doubleValue());
 					return histogramData;
 				})
-				.collect(ArrayList<Pair<Double, List<HistogramData>>>::new, Accumulator::apacAggregator, (x, y) -> {});
+				.collect(ArrayList<Pair<Double, List<HistogramData>>>::new, Accumulator::indexAggregator, (x, y) -> {});
 		return groupByIndexSumMax;
 	}
 
-	static class Accumulator {
-		public static void apacAggregator(List<Pair<Double, List<HistogramData>>> lPair, HistogramData histo) {
+	private static class Accumulator {
+		public static void indexAggregator(List<Pair<Double, List<HistogramData>>> lPair, HistogramData histo) {
 			Pair<Double, List<HistogramData>> lastPair = lPair.isEmpty() ? null : lPair.get(lPair.size() - 1);
 			Double indexSize = histo.getIndexSize();
 			Region region = histo.getRegion();
@@ -104,7 +123,7 @@ public class IndexMetaGeneratorApp {
 				lPair.add(
 						new Pair<Double, List<HistogramData>>(indexSize,
 								Arrays.asList(histo)));
-			} else if (histo.getDate().before(region .getLowerBound())) {
+			} else if (histo.getDate().before(region.getLowerBound())) {
 				if(lastPair.left + indexSize > MAX_SIZE_PER_INDEX) {
 					lPair.add(
 							new Pair<Double, List<HistogramData>>(indexSize,
@@ -153,19 +172,4 @@ public class IndexMetaGeneratorApp {
 			}
 		}
 	}
-
-	public static void main(String[] args) throws IOException {
-		IndexMetaGeneratorApp app = new IndexMetaGeneratorApp();
-
-		for(Region region : Region.values()) {
-			Stream<String> lines = app.readFile(region.getFileName());
-
-			ArrayList<Pair<Double, List<HistogramData>>> groupByIndexSumMax = app.groupByOutliersAndSize(lines, region);
-
-			generateIndexeSnapshot(groupByIndexSumMax, region);
-		}
-
-
-	}
-
 }

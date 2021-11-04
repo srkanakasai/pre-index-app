@@ -1,12 +1,16 @@
 package com.smarsh.pojo;
 
 import java.math.BigDecimal;
-import java.math.BigInteger;
 import java.util.Date;
 
 import com.smarsh.common.Constants;
 import com.smarsh.common.Region;
 
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+
+@AllArgsConstructor
+@Getter
 public class HistogramData {
 
 	private Region region;
@@ -28,9 +32,6 @@ public class HistogramData {
 	public Date getDate() {
 		return date;
 	}
-	public String getDateInString() {
-		return Constants.dateFormat.get().format(date);
-	}
 	public BigDecimal getSizeInKb() {
 		return sizeInKb;
 	}
@@ -40,9 +41,12 @@ public class HistogramData {
 	public double getIndexSize() {
 		return indexSize;
 	}
+	public String getDateInString() {
+		return Constants.dateFormat.get().format(date);
+	}
 	@Override
 	public String toString() {
-		return "HistogramData [date=" + Constants.dateFormat.get().format(date) + ", sizeInKb=" + sizeInKb.intValue() + ", hour=" + hour + ", indexSize=" + indexSize
-				+ "]";
+		return "HistogramData [region=" + region + ", date=" + Constants.dateFormat.get().format(date) + ", sizeInKb=" + sizeInKb + ", hour=" + hour
+				+ ", indexSize=" + indexSize + "]";
 	}
 }

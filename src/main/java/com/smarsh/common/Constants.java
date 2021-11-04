@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.function.Supplier;
 
 public class Constants {
 	public static final ThreadLocal<SimpleDateFormat> dateFormat = new ThreadLocal<SimpleDateFormat>() {
@@ -15,7 +16,7 @@ public class Constants {
 	
 	public static final Date parse(String date) {
 		try {
-			return dateFormat.get().parse("2010-01-01");
+			return dateFormat.get().parse(date);
 		} catch (ParseException e) {
 			return null;
 		}
@@ -27,7 +28,10 @@ public class Constants {
 	public static final int MAX_NUM_OF_SHARDS_PER_INDEX = 12;
 	public static final int SHARD_SIZE_IN_GB = 20;
 	public static final int OCCUPENCY_PERCENTAGE = 80;
+	public static final int ROUND_OFF_FACTOR = 50;
 	
-	public static final int MAX_SIZE_PER_INDEX = 200000000;
-	public static final BigDecimal IndexToDataRatio = BigDecimal.valueOf((double)20/100);
+	//public static final int MAX_SIZE_PER_INDEX = 200000000;
+	public static final Supplier<BigDecimal> IndexToDataRatio(Integer percent){
+		return ()->BigDecimal.valueOf((double)percent/100);
+	}
 }
