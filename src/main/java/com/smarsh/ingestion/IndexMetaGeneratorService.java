@@ -79,8 +79,8 @@ public class IndexMetaGeneratorService {
 
 					logger.debug(String.format("IndexID:%s, StartDate:%s, EndDate:%s, MemoryConsumption:%d",
 							indexID, startRange.getDateInString(), endRange.getDateInString(), indexMemSize.intValue()));
-					fw.write(String.format("IndexID:%s, StartDate:%s, EndDate:%s, MemoryConsumption:%d\n",
-							indexID, startRange.getDateInString(), endRange.getDateInString(), indexMemSize.intValue()));
+					fw.write(String.format("[%s-%s]\t:\tIndexID:%s, MemoryConsumption:%d\n",
+							startRange.getDateInString(), endRange.getDateInString(), indexID, indexMemSize.intValue()));
 				}
 
 				fw.write("************** END ***********************\n");
@@ -94,23 +94,26 @@ public class IndexMetaGeneratorService {
 	}
 
 	private ArrayList<Pair<Double, List<HistogramData>>> groupByOutliersAndSize(Stream<String> lines, PreIndexMetaData preIndexMetaData, Region region) {
+		
 		ArrayList<Pair<Double, List<HistogramData>>> groupByIndexSumMax = lines
-				.skip(1)
-				.map(line -> {
-					String[] data = line.split(",");
-					Date date = null;
-					try {
-						date = dateFormat.get().parse(data[0]);
-					} catch (ParseException e) {
-						e.printStackTrace();
-					}
-					BigDecimal sizeInKB = new BigDecimal(data[2]);
-					Integer hour = Integer.parseInt(data[1]);
-					BigDecimal indexSizeV2 = sizeInKB.multiply(preIndexMetaData.getIndexToDocMemRatio());
-					HistogramData histogramData = new HistogramData(region, date, sizeInKB, hour, indexSizeV2.doubleValue());
-					return histogramData;
-				})
-				.collect(ArrayList<Pair<Double, List<HistogramData>>>::new, Accumulator::indexAggregator, (x, y) -> {});
+			.skip(1)
+			.map(line -> {
+				String[] data = line.split(",");
+				Date date = null;
+				try {
+					date = dateFormat.get().parse(data[0]);
+				} catch (ParseException e) {
+					e.printStackTrace();
+				}
+				BigDecimal sizeInKB = new BigDecimal(data[2]);
+				Integer hour = Integer.parseInt(data[1]);
+				BigDecimal indexSizeV2 = sizeInKB.multiply(preIndexMetaData.getIndexToDocMemRatio());
+				HistogramData histogramData = new HistogramData(region, date, sizeInKB, hour, indexSizeV2.doubleValue());
+				return histogramData;
+			})
+			.sorted((h1,h2)->Long.valueOf(h1.getDate().getTime()).compareTo(h2.getDate().getTime()))
+			.collect(ArrayList<Pair<Double, List<HistogramData>>>::new, Accumulator::indexAggregator, (x, y) -> {});
+		
 		return groupByIndexSumMax;
 	}
 
@@ -120,11 +123,20 @@ public class IndexMetaGeneratorService {
 			Double indexSize = histo.getIndexSize();
 			Region region = histo.getRegion();
 
-			if( Objects.isNull(lastPair)) {
+			if( Objects.isNull(lastPair) || lastPair.left + indexSize > MAX_SIZE_PER_INDEX) {
 				lPair.add(
 						new Pair<Double, List<HistogramData>>(indexSize,
 								Arrays.asList(histo)));
-			} else if (histo.getDate().before(region.getLowerBound())) {
+			} else {
+				List<HistogramData> newList = new ArrayList<>();
+				newList.addAll(lastPair.getRight());
+				newList.add(histo);
+				lastPair.setLeft(lastPair.getLeft() + indexSize);
+				lastPair.setRight(newList);
+			}
+			
+			
+			/*else if (histo.getDate().before(region.getLowerBound())) {
 				if(lastPair.left + indexSize > MAX_SIZE_PER_INDEX) {
 					lPair.add(
 							new Pair<Double, List<HistogramData>>(indexSize,
@@ -170,7 +182,7 @@ public class IndexMetaGeneratorService {
 					lastPair.setLeft(lastPair.getLeft() + indexSize);
 					lastPair.setRight(newList);
 				}
-			}
+			}*/
 		}
 	}
 }
