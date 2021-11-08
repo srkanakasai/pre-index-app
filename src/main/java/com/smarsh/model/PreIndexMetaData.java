@@ -1,4 +1,4 @@
-package com.smarsh.pojo;
+package com.smarsh.model;
 
 import java.math.BigDecimal;
 

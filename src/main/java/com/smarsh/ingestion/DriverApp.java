@@ -2,10 +2,11 @@ package com.smarsh.ingestion;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Properties;
 
 import com.smarsh.common.Constants;
 import com.smarsh.common.Region;
-import com.smarsh.pojo.PreIndexMetaData;
+import com.smarsh.model.PreIndexMetaData;
 
 public class DriverApp {
 	/**
@@ -27,37 +28,15 @@ public class DriverApp {
 	public static void main(String[] args) throws IOException {
 		
 		PreIndexMetaData preIndexMetaData = new PreIndexMetaData();
-		int i = 0;
-		while(i < args.length) {
-			String argName = args[i];
-			switch (argName) {
-			case TENANT:
-				i++;
-				preIndexMetaData.setTenant(args[i++]);
-				break;
-			case SHARDS:
-				i++;
-				preIndexMetaData.setMaxNumOfShardsPerIndex(Integer.parseInt(args[i++]));
-				break;
-			case SHARD_SIZE:
-				i++;
-				preIndexMetaData.setShardSizeInGB(Integer.parseInt(args[i++]));
-				break;
-			case UPPER_BOUND_THRESHOLD:
-				i++;
-				preIndexMetaData.setFillPercentage(Integer.parseInt(args[i++]));
-				break;
-			case INDEX_TO_DOC_MEM_RATIO:
-				i++;
-				preIndexMetaData.setIndexToDocMemRatio(Constants.IndexToDataRatio(Integer.parseInt(args[i++])).get());
-				break;
-			default:
-				break;
-			}
-		}
+		preIndexMetaData.setTenant(System.getProperty(TENANT));
+		preIndexMetaData.setMaxNumOfShardsPerIndex(Integer.parseInt(System.getProperty(SHARDS)));
+		preIndexMetaData.setShardSizeInGB(Integer.parseInt(System.getProperty(SHARD_SIZE)));
+		preIndexMetaData.setFillPercentage(Integer.parseInt(System.getProperty(UPPER_BOUND_THRESHOLD)));
+		preIndexMetaData.setIndexToDocMemRatio(Constants.IndexToDataRatio(Integer.parseInt(System.getProperty(INDEX_TO_DOC_MEM_RATIO))).get());
 		
+		Properties properties = System.getProperties();
 		
-		IndexMetaGeneratorService app = new IndexMetaGeneratorService();
+		IndexMetaGeneratorService app = new IndexMetaGeneratorService(properties);
 		app.generatePreIndexes(preIndexMetaData, Arrays.asList(Region.values()));
 	}
 }

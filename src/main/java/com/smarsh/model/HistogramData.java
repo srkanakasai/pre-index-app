@@ -1,4 +1,4 @@
-package com.smarsh.pojo;
+package com.smarsh.model;
 
 import java.math.BigDecimal;
 import java.util.Date;
@@ -6,11 +6,7 @@ import java.util.Date;
 import com.smarsh.common.Constants;
 import com.smarsh.common.Region;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
 
-@AllArgsConstructor
-@Getter
 public class HistogramData {
 
 	private Region region;

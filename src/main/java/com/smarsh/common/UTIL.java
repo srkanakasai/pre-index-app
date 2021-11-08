@@ -24,6 +24,26 @@ public class UTIL {
 
 		return String.format("%d%s%s", year,monthStr,dateStr);
 	}
+	
+	/**
+	 * If D2 year is greater than D1 then return 1
+	 * if D2 year is less than D1 then return -1
+	 * if Both the years are same return 0;
+	 * @param d1
+	 * @param d2
+	 * @return
+	 */
+	public static int compareYears(Date d1, Date d2) {
+		Calendar calendar1 = Calendar.getInstance();
+		calendar1.setTime(d1);
+		int year1 = calendar1.get(Calendar.YEAR);
+		
+		Calendar calendar2 = Calendar.getInstance();
+		calendar2.setTime(d2);
+		int year2 = calendar2.get(Calendar.YEAR);
+		
+		return (year2>year1)?1:(year1>year2)?-1:0;
+	}
 
 	public static long getMaxSizePerIndexInGB(int maxNumOfShardsPerIndex, int shardSizeInGB, int fillPercentage) {
 		int maxIndexMemoryAvailable = maxNumOfShardsPerIndex*shardSizeInGB;

@@ -1,4 +1,4 @@
-package com.smarsh.pojo;
+package com.smarsh.model;
 
 public class Pair<T, V> {
 	public T left;
